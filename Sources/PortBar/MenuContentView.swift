@@ -11,8 +11,6 @@ struct MenuContentView: View {
     /// its content (a bare ScrollView collapses to zero height in a window-style
     /// MenuBarExtra).
     @State private var listContentHeight: CGFloat = 0
-    /// Drives the "Stop all dev servers" confirmation dialog.
-    @State private var confirmStopAll = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -51,15 +49,6 @@ struct MenuContentView: View {
         }
         .frame(width: 340)
         .onAppear { scanner.refreshInterval = refreshInterval }
-        .confirmationDialog("Stop all \(scanner.devPorts.count) dev servers?",
-                            isPresented: $confirmStopAll, titleVisibility: .visible) {
-            Button("Stop all", role: .destructive) {
-                Task { await scanner.stopAllDevServers() }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Sends a graceful shutdown (SIGTERM) to each dev server. Other listeners are left alone.")
-        }
     }
 
     // MARK: - Header
@@ -97,10 +86,12 @@ struct MenuContentView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if showStopAll && !ports.isEmpty {
-                Button("Stop all") { confirmStopAll = true }
-                    .buttonStyle(.borderless)
-                    .font(.caption2)
-                    .help("Stop every dev server below (graceful)")
+                Button("Stop all") {
+                    Task { await scanner.stopAllDevServers() }
+                }
+                .buttonStyle(.borderless)
+                .font(.caption2)
+                .help("Gracefully stop every dev server below")
             }
         }
         .padding(.horizontal, 12)
