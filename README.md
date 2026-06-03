@@ -1,124 +1,101 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" width="128" alt="PortBar app icon">
+  <img src="Resources/AppIcon.png" width="120" alt="PortBar app icon">
 </p>
 
 <h1 align="center">PortBar</h1>
 
-[![CI](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml/badge.svg)](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Platform](https://img.shields.io/badge/macOS-14%2B-blue)
+<p align="center">See what's running on your ports — and kill it — straight from the menu bar.</p>
 
-A tiny native macOS menu bar app that shows every dev server listening on your
-machine — what it is, which project it belongs to, and a one-click way to kill
-it.
+<p align="center">
+  <a href="https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml"><img src="https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/macOS-14%2B-blue" alt="macOS 14+">
+</p>
 
-If you've ever stared at `EADDRINUSE: port 3000 already in use` and had no idea
-*which* of your half-dozen running servers grabbed it, PortBar is for you.
+<p align="center">
+  <img src="docs/screenshot.png" width="380" alt="PortBar dropdown showing listening ports">
+</p>
 
-> **Status:** v0.1 — early days. Built from scratch in Swift with no third-party
-> dependencies. Contributions welcome.
+## Why I made this
 
-## Features
+I kept ending up with a pile of dev servers running and no idea which was which.
+Something on 3000, something on 8000, half of them forgotten in terminal tabs I'd
+already closed. Then the usual `EADDRINUSE: address already in use` and a hunt for
+the right PID to kill.
 
-- 🔌 **Live port list in your menu bar** — the icon shows how many dev servers
-  are currently listening.
-- 🧠 **Knows what each port is** — process name plus the project directory it's
-  running from (e.g. `3000 — node (my-app)`), so you can tell your servers apart
-  at a glance.
-- ✋ **One-click kill** — graceful `SIGTERM` or forceful `SIGKILL`, right from
-  the dropdown. The list refreshes immediately after.
-- 🌐 **Open in browser** — jump to `localhost:<port>` without retyping it.
-- 🙈 **No system noise** — Apple/OS daemons (rapportd, Control Center, …) are
-  detected by their executable path and hidden by default. Toggle them on if you
-  want to see everything.
-- 🪶 **Native & lightweight** — pure SwiftUI `MenuBarExtra`, no Electron, no
-  background bloat. It just shells out to `lsof`.
+PortBar is the little tool I wanted: click the menu bar, see every dev server
+with the project it belongs to, and kill it in one click. That's it.
 
-## Requirements
+## What it does
 
-- macOS 14 (Sonoma) or later
-- Swift 6 toolchain (Xcode or Command Line Tools) to build from source
+- Lists every listening TCP port with its process and the project folder it's
+  running from, so `3000 — node (my-app)` instead of just a number.
+- A green/orange dot tells you whether it's actually answering or just sitting
+  there hung.
+- Kill a server gracefully, or force it, without going near the terminal.
+- Open it in your browser, or jump straight to the project in your editor,
+  Finder, or a terminal.
+- Hides macOS's own background daemons so you only see things you care about.
+- "Stop all" when you just want a clean slate.
+
+It's a native SwiftUI menu bar app — no Electron, no background service. Under the
+hood it just shells out to `lsof`.
 
 ## Install
 
-### Homebrew
+**Homebrew:**
 
 ```bash
 brew tap amirajaj/portbar https://github.com/AmirAjaj/PortBar
 brew install --cask portbar
 ```
 
-PortBar is ad-hoc signed (not yet notarized), so on first launch macOS may block
-it. If so: **System Settings → Privacy & Security → Open Anyway**, or run
-`xattr -dr com.apple.quarantine "/Applications/PortBar.app"`.
+It isn't notarized yet, so the first launch macOS will complain it can't be
+checked for malware. Either open **System Settings → Privacy & Security** and hit
+*Open Anyway*, or run this once:
 
-### Manual
+```bash
+xattr -dr com.apple.quarantine "/Applications/PortBar.app"
+```
 
-Grab `PortBar.zip` from the [latest release](https://github.com/AmirAjaj/PortBar/releases/latest),
-unzip, and drag `PortBar.app` to `~/Applications`.
+**Manual:** grab `PortBar.zip` from the
+[latest release](https://github.com/AmirAjaj/PortBar/releases/latest), unzip it,
+and drop `PortBar.app` into Applications.
 
-## Build & run
+## Build it yourself
+
+You need macOS 14+ and a Swift 6 toolchain (Xcode or the Command Line Tools).
 
 ```bash
 git clone https://github.com/AmirAjaj/PortBar.git
 cd PortBar
-
-# Run it straight away during development:
-make run
-
-# …or build a proper PortBar.app and install it to ~/Applications:
-make install
+make run        # run it straight away
+make install    # build PortBar.app and copy it to ~/Applications
 ```
 
-Then look for the 🔌 icon in your menu bar.
+The icon is generated from code, not a design file — `swift Scripts/make-icons.swift`.
 
 ## How it works
 
-PortBar avoids private APIs entirely. Every few seconds it runs:
+Every few seconds it runs `lsof -nP -iTCP -sTCP:LISTEN` to find listening sockets.
+For each one it looks up the process's executable path (to spot and hide system
+daemons under `/System`, `/usr/bin`, etc.) and its working directory (to label it
+with the project). A port counts as a dev server if the command looks like one
+(`node`, `vite`, `python`, `cargo`, …) or it's running from somewhere under your
+home folder. The health dot is just a quick HTTP `HEAD` with a short timeout.
 
-```
-lsof -nP -iTCP -sTCP:LISTEN
-```
+The code lives in `Sources/PortBar/`, roughly one file per concern (scanning,
+the model, the menu UI, killing, launch-at-login).
 
-to find listening TCP sockets, then enriches each one:
+## Ideas / roadmap
 
-- `ps -p <pid> -o comm=` → the process's executable path (used to spot and hide
-  system daemons living under `/System`, `/usr/bin`, etc.).
-- `lsof -a -p <pid> -d cwd -Fn` → the process's working directory, used to label
-  the port with its project name.
+- a search box for when there are a lot of ports
+- custom labels you can pin to a port ("this 8000 is the API")
+- a notification when a server comes up or a port frees
+- notarized builds so Gatekeeper stops complaining
 
-A port is treated as a **dev server** if its command matches a known dev tool
-(`node`, `vite`, `python`, `cargo`, …) *or* it's running out of a directory
-under your home folder. Everything else that isn't a system daemon lands under
-"Other listeners."
-
-## Project layout
-
-```
-Sources/PortBar/
-  PortBarApp.swift      — @main app + MenuBarExtra, hides the Dock icon
-  MenuContentView.swift — the dropdown UI (sections, rows, settings)
-  PortScanner.swift     — periodic scan, parsing, classification
-  ListeningPort.swift   — the port model + dev/system heuristics
-  ProcessKiller.swift   — SIGTERM / SIGKILL via kill(2)
-  LaunchAtLogin.swift   — SMAppService wrapper for "Launch at login"
-  Shell.swift           — minimal helper for running lsof/ps
-```
-
-## Roadmap
-
-- [ ] App icon + menu bar icon polish
-- [ ] Filter/search box for when lots of ports are open
-- [ ] "Copy `kill` command" and "Reveal project in Finder" actions
-- [ ] Remember per-port labels the user assigns
-- [ ] Notarized release + Homebrew cask
-
-## Contributing
-
-Issues and PRs are very welcome — this is a young project with plenty of low-
-hanging fruit (see the roadmap). Keep changes dependency-free and native where
-possible.
+PRs welcome — it's a small codebase and there's plenty of low-hanging fruit.
 
 ## License
 
-[MIT](LICENSE) © 2026 Amir Ajaj
+MIT — see [LICENSE](LICENSE).
