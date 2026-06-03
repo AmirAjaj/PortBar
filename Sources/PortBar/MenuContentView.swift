@@ -106,7 +106,7 @@ struct MenuContentView: View {
     // MARK: - Footer
 
     private var footer: some View {
-        VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Refresh")
                 Spacer()
@@ -123,16 +123,20 @@ struct MenuContentView: View {
                 }
             }
 
-            Toggle("Show system listeners", isOn: $showSystemPorts)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
+            Toggle(isOn: $showSystemPorts) {
+                Text("Show system listeners").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
 
-            Toggle("Launch at login", isOn: $launchAtLogin)
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .onChange(of: launchAtLogin) { _, newValue in
-                    LaunchAtLogin.set(newValue)
-                }
+            Toggle(isOn: $launchAtLogin) {
+                Text("Launch at login").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .onChange(of: launchAtLogin) { _, newValue in
+                LaunchAtLogin.set(newValue)
+            }
 
             Divider()
 
