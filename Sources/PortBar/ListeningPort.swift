@@ -1,5 +1,12 @@
 import Foundation
 
+/// Result of probing a port over HTTP.
+enum PortHealth: Sendable {
+    case unknown      // not yet checked
+    case responding   // answered an HTTP request
+    case noResponse   // socket is open but didn't answer in time (hung / non-HTTP)
+}
+
 /// A single listening TCP port together with the process that owns it.
 struct ListeningPort: Identifiable, Hashable, Sendable {
     let pid: Int32
@@ -10,6 +17,8 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
     /// The process's current working directory — our best hint for *which*
     /// project a dev server belongs to.
     let workingDirectory: String?
+    /// Liveness as of the last scan (set asynchronously after discovery).
+    var health: PortHealth = .unknown
 
     /// Stable identity for SwiftUI diffing: a process can listen on several
     /// ports, so we key on both.

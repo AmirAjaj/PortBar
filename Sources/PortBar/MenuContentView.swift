@@ -11,6 +11,8 @@ struct MenuContentView: View {
     /// its content (a bare ScrollView collapses to zero height in a window-style
     /// MenuBarExtra).
     @State private var listContentHeight: CGFloat = 0
+    /// Drives the "Stop all dev servers" confirmation dialog.
+    @State private var confirmStopAll = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,7 +23,8 @@ struct MenuContentView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     section(title: "Dev servers",
                             ports: scanner.devPorts,
-                            emptyMessage: "No dev servers listening")
+                            emptyMessage: "No dev servers listening",
+                            showStopAll: true)
 
                     if !scanner.otherPorts.isEmpty {
                         section(title: "Other listeners", ports: scanner.otherPorts)
@@ -48,6 +51,15 @@ struct MenuContentView: View {
         }
         .frame(width: 340)
         .onAppear { scanner.refreshInterval = refreshInterval }
+        .confirmationDialog("Stop all \(scanner.devPorts.count) dev servers?",
+                            isPresented: $confirmStopAll, titleVisibility: .visible) {
+            Button("Stop all", role: .destructive) {
+                Task { await scanner.stopAllDevServers() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Sends a graceful shutdown (SIGTERM) to each dev server. Other listeners are left alone.")
+        }
     }
 
     // MARK: - Header
@@ -76,12 +88,23 @@ struct MenuContentView: View {
     // MARK: - Sections
 
     @ViewBuilder
-    private func section(title: String, ports: [ListeningPort], emptyMessage: String? = nil) -> some View {
-        Text(title.uppercased())
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.top, 6)
+    private func section(title: String, ports: [ListeningPort],
+                         emptyMessage: String? = nil,
+                         showStopAll: Bool = false) -> some View {
+        HStack {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+            if showStopAll && !ports.isEmpty {
+                Button("Stop all") { confirmStopAll = true }
+                    .buttonStyle(.borderless)
+                    .font(.caption2)
+                    .help("Stop every dev server below (graceful)")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
 
         if ports.isEmpty, let emptyMessage {
             Text(emptyMessage)
@@ -157,6 +180,24 @@ struct MenuContentView: View {
     }
 }
 
+private extension PortHealth {
+    var dotColor: Color {
+        switch self {
+        case .responding: return .green
+        case .noResponse: return .orange
+        case .unknown:    return .gray
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .responding: return "Responding to HTTP"
+        case .noResponse: return "Listening, but not responding to HTTP"
+        case .unknown:    return "Checking…"
+        }
+    }
+}
+
 /// Carries the measured natural height of the list up to the parent.
 private struct ContentHeightKey: PreferenceKey {
     static let defaultValue: CGFloat = 0
@@ -174,9 +215,12 @@ private struct PortRowView: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "globe")
-                .foregroundStyle(.secondary)
+            // Liveness dot: green = serving HTTP, orange = listening but silent.
+            Circle()
+                .fill(port.health.dotColor)
+                .frame(width: 8, height: 8)
                 .frame(width: 16)
+                .help(port.health.label)
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
@@ -197,6 +241,17 @@ private struct PortRowView: View {
             // discoverability. The right-click menu below names each one in
             // full, since hover tooltips are unreliable in a menu-bar popover.
             HStack(spacing: 4) {
+                // Open the project in your editor (shows the editor's real icon).
+                if let wd = port.workingDirectory, wd != "/",
+                   let editor = ProjectActions.installedEditors.first,
+                   let appURL = editor.appURL {
+                    Button { ProjectActions.open(wd, in: editor) } label: {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                            .resizable().frame(width: 16, height: 16)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in \(editor.name)")
+                }
                 if port.localhostURL != nil {
                     Button { openInBrowser() } label: {
                         if let icon = Browser.defaultIcon {
@@ -224,6 +279,21 @@ private struct PortRowView: View {
                     Text(verbatim: "Open localhost:\(port.port) in Browser")
                 }
             }
+            if let wd = port.workingDirectory, wd != "/" {
+                Divider()
+                ForEach(ProjectActions.installedEditors) { editor in
+                    Button { ProjectActions.open(wd, in: editor) } label: {
+                        Text(verbatim: "Open in \(editor.name)")
+                    }
+                }
+                Button { ProjectActions.openInTerminal(wd) } label: {
+                    Text(verbatim: "Open in Terminal")
+                }
+                Button { ProjectActions.revealInFinder(wd) } label: {
+                    Text(verbatim: "Reveal in Finder")
+                }
+            }
+            Divider()
             Button { onKill(.term) } label: {
                 Text(verbatim: "Stop server (graceful — lets it shut down cleanly)")
             }
@@ -231,11 +301,6 @@ private struct PortRowView: View {
                 Text(verbatim: "Force quit (kill instantly — only if Stop fails)")
             }
             Divider()
-            if let wd = port.workingDirectory, wd != "/" {
-                Button { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: wd) } label: {
-                    Text(verbatim: "Reveal project in Finder")
-                }
-            }
             Text(verbatim: "PID \(port.pid) · \(port.command)")
         }
     }

@@ -30,6 +30,15 @@ final class PortScanner: ObservableObject {
     /// Apple/OS daemons — hidden unless the user opts to show them.
     var systemPorts: [ListeningPort] { ports.filter(\.isSystem) }
 
+    /// Sends SIGTERM to every dev server (and only dev servers), then rescans.
+    /// Deliberately scoped to dev servers so this never mass-kills other apps.
+    func stopAllDevServers() async {
+        let pids = Set(devPorts.map(\.pid))
+        for pid in pids { ProcessKiller.send(.term, to: pid) }
+        try? await Task.sleep(for: .milliseconds(400))
+        await scan()
+    }
+
     init() {
         startTimer()
         Task { await scan() }
@@ -47,11 +56,49 @@ final class PortScanner: ObservableObject {
     func scan() async {
         guard !isScanning else { return }
         isScanning = true
-        let found = await Task.detached(priority: .utility) {
+        var found = await Task.detached(priority: .utility) {
             PortScanner.discoverPorts()
         }.value
+        found = await PortScanner.annotateHealth(found)
         ports = found
         isScanning = false
+    }
+
+    /// Probes each non-system port over HTTP (concurrently, short timeout) and
+    /// returns copies tagged with their liveness.
+    nonisolated static func annotateHealth(_ ports: [ListeningPort]) async -> [ListeningPort] {
+        let health: [String: PortHealth] = await withTaskGroup(of: (String, PortHealth).self) { group in
+            for port in ports where !port.isSystem {
+                group.addTask { (port.id, await httpHealth(port: port.port)) }
+            }
+            var map: [String: PortHealth] = [:]
+            for await (id, status) in group { map[id] = status }
+            return map
+        }
+        return ports.map { port in
+            var copy = port
+            copy.health = health[port.id] ?? .unknown
+            return copy
+        }
+    }
+
+    /// Sends a quick HTTP HEAD; any HTTP reply (even an error status) means the
+    /// server is alive. A timeout/refusal means it's listening but not serving.
+    private nonisolated static func httpHealth(port: Int) async -> PortHealth {
+        guard let url = URL(string: "http://localhost:\(port)/") else { return .unknown }
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 0.7
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 0.7
+        config.waitsForConnectivity = false
+        let session = URLSession(configuration: config)
+        do {
+            let (_, response) = try await session.data(for: request)
+            return response is HTTPURLResponse ? .responding : .noResponse
+        } catch {
+            return .noResponse
+        }
     }
 
     // MARK: - Discovery (runs off the main actor)
