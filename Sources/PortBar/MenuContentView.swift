@@ -176,7 +176,10 @@ private struct PortRowView: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    Text("\(port.port)").font(.system(.body, design: .monospaced).weight(.semibold))
+                    // `verbatim:` avoids SwiftUI localizing the port into a
+                    // grouped number (e.g. "56.068" in German locales).
+                    Text(verbatim: String(port.port))
+                        .font(.system(.body, design: .monospaced).weight(.semibold))
                     Text(port.command).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if let project = port.projectName {
@@ -188,12 +191,19 @@ private struct PortRowView: View {
 
             if hovering {
                 if port.localhostURL != nil {
-                    actionButton("safari", help: "Open localhost:\(port.port)") {
+                    actionButton("safari", help: "Open localhost:\(port.port) in your browser") {
                         if let url = port.localhostURL { NSWorkspace.shared.open(url) }
                     }
                 }
-                actionButton("stop.circle", help: "Kill (SIGTERM)") { onKill(.term) }
-                actionButton("xmark.octagon.fill", help: "Force kill (SIGKILL)", tint: .red) { onKill(.kill) }
+                actionButton("stop.circle",
+                             help: "Stop — ask the server to shut down gracefully (SIGTERM)") {
+                    onKill(.term)
+                }
+                actionButton("xmark.octagon.fill",
+                             help: "Force quit — kill it instantly. Use only if Stop doesn't work (SIGKILL)",
+                             tint: .red) {
+                    onKill(.kill)
+                }
             }
         }
         .padding(.horizontal, 12)
