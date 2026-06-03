@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshot.png" width="380" alt="PortBar dropdown showing listening ports">
+  <img src="docs/preview.png" width="380" alt="PortBar dropdown showing listening ports">
 </p>
 
 ## Why I made this
