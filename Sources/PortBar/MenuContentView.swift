@@ -189,29 +189,47 @@ private struct PortRowView: View {
 
             Spacer()
 
-            if hovering {
+            // Quick actions, always visible (dimmed until hover) for
+            // discoverability. The right-click menu below names each one in
+            // full, since hover tooltips are unreliable in a menu-bar popover.
+            HStack(spacing: 4) {
                 if port.localhostURL != nil {
-                    actionButton("safari", help: "Open localhost:\(port.port) in your browser") {
-                        if let url = port.localhostURL { NSWorkspace.shared.open(url) }
-                    }
+                    actionButton("safari", help: "Open in browser") { openInBrowser() }
                 }
-                actionButton("stop.circle",
-                             help: "Stop — ask the server to shut down gracefully (SIGTERM)") {
-                    onKill(.term)
-                }
-                actionButton("xmark.octagon.fill",
-                             help: "Force quit — kill it instantly. Use only if Stop doesn't work (SIGKILL)",
-                             tint: .red) {
-                    onKill(.kill)
-                }
+                actionButton("stop.circle", help: "Stop (graceful)") { onKill(.term) }
+                actionButton("xmark.octagon.fill", help: "Force quit", tint: .red) { onKill(.kill) }
             }
+            .opacity(hovering ? 1 : 0.5)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .background(hovering ? Color.primary.opacity(0.06) : .clear)
         .onHover { hovering = $0 }
-        .help(port.executablePath ?? "PID \(port.pid)")
+        .contextMenu {
+            if port.localhostURL != nil {
+                Button { openInBrowser() } label: {
+                    Text(verbatim: "Open localhost:\(port.port) in Browser")
+                }
+            }
+            Button { onKill(.term) } label: {
+                Text(verbatim: "Stop server (graceful — lets it shut down cleanly)")
+            }
+            Button(role: .destructive) { onKill(.kill) } label: {
+                Text(verbatim: "Force quit (kill instantly — only if Stop fails)")
+            }
+            Divider()
+            if let wd = port.workingDirectory, wd != "/" {
+                Button { NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: wd) } label: {
+                    Text(verbatim: "Reveal project in Finder")
+                }
+            }
+            Text(verbatim: "PID \(port.pid) · \(port.command)")
+        }
+    }
+
+    private func openInBrowser() {
+        if let url = port.localhostURL { NSWorkspace.shared.open(url) }
     }
 
     private func actionButton(_ symbol: String, help: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
