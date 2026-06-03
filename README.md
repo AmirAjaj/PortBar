@@ -62,6 +62,11 @@ xattr -dr com.apple.quarantine "/Applications/PortBar.app"
 [latest release](https://github.com/AmirAjaj/PortBar/releases/latest), unzip it,
 and drop `PortBar.app` into Applications.
 
+**Updating:** PortBar checks GitHub for newer releases and shows a "download"
+link in the menu when one is available. Homebrew users can just run
+`brew upgrade --cask portbar`. (Silent in-place updates would need notarization —
+see [#6](https://github.com/AmirAjaj/PortBar/issues/6).)
+
 ## Build it yourself
 
 You need macOS 14+ and a Swift 6 toolchain (Xcode or the Command Line Tools).

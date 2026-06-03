@@ -35,3 +35,21 @@ jobs:
           files: |
             dist/PortBar.zip
             dist/PortBar.zip.sha256
+
+      - name: Bump Homebrew cask on main
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA="$(shasum -a 256 dist/PortBar.zip | cut -d' ' -f1)"
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' -E "s/^  version \".*\"/  version \"${VERSION}\"/" Casks/portbar.rb
+          sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/portbar.rb
+          if git diff --quiet Casks/portbar.rb; then
+            echo "Cask already up to date."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Casks/portbar.rb
+            git commit -m "ci: bump portbar cask to ${VERSION}"
+            git push origin main
+          fi

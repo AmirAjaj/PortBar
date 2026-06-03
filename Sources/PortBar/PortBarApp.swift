@@ -5,10 +5,11 @@ import SwiftUI
 struct PortBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var scanner = PortScanner()
+    @StateObject private var updates = UpdateChecker()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContentView(scanner: scanner)
+            MenuContentView(scanner: scanner, updates: updates)
         } label: {
             // The menu bar title: a plug icon plus the live dev-server count.
             Label("\(scanner.devPorts.count)", systemImage: "powerplug.fill")

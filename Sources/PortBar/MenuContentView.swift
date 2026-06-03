@@ -3,6 +3,7 @@ import SwiftUI
 /// The popover shown when the user clicks the menu bar item.
 struct MenuContentView: View {
     @ObservedObject var scanner: PortScanner
+    @ObservedObject var updates: UpdateChecker
 
     @AppStorage("refreshInterval") private var refreshInterval: Double = 5
     @AppStorage("showSystemPorts") private var showSystemPorts: Bool = false
@@ -156,16 +157,39 @@ struct MenuContentView: View {
                 LaunchAtLogin.set(newValue)
             }
 
+            if updates.updateAvailable, let latest = updates.latestVersion {
+                Button {
+                    NSWorkspace.shared.open(updates.releasesURL)
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.down.circle.fill").foregroundStyle(.green)
+                        Text("Update available: v\(latest)")
+                        Spacer()
+                    }
+                }
+                .buttonStyle(.borderless)
+            }
+
             Divider()
 
-            Button {
-                NSApplication.shared.terminate(nil)
-            } label: {
-                HStack {
-                    Image(systemName: "power")
-                    Text("Quit PortBar")
-                    Spacer()
+            HStack(spacing: 16) {
+                Button {
+                    AppRelauncher.restart()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Restart")
+                    }
                 }
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "power")
+                        Text("Quit")
+                    }
+                }
+                Spacer()
             }
             .buttonStyle(.borderless)
         }
