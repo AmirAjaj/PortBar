@@ -1,5 +1,9 @@
 # PortBar
 
+[![CI](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml/badge.svg)](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/macOS-14%2B-blue)
+
 A tiny native macOS menu bar app that shows every dev server listening on your
 machine — what it is, which project it belongs to, and a one-click way to kill
 it.
@@ -29,7 +33,25 @@ If you've ever stared at `EADDRINUSE: port 3000 already in use` and had no idea
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Swift 6.2+ toolchain (Xcode or Command Line Tools) to build from source
+- Swift 6 toolchain (Xcode or Command Line Tools) to build from source
+
+## Install
+
+### Homebrew
+
+```bash
+brew tap amirajaj/portbar https://github.com/AmirAjaj/PortBar
+brew install --cask portbar
+```
+
+PortBar is ad-hoc signed (not yet notarized), so on first launch macOS may block
+it. If so: **System Settings → Privacy & Security → Open Anyway**, or run
+`xattr -dr com.apple.quarantine "/Applications/PortBar.app"`.
+
+### Manual
+
+Grab `PortBar.zip` from the [latest release](https://github.com/AmirAjaj/PortBar/releases/latest),
+unzip, and drag `PortBar.app` to `~/Applications`.
 
 ## Build & run
 
