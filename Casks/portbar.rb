@@ -1,6 +1,6 @@
 cask "portbar" do
   version "0.1.0"
-  sha256 :no_check # ad-hoc signed build; pin a real checksum once notarized
+  sha256 "cf91103f27c6d0266c106605ce587f1fec702f50e5d3021c18f79cc34ffea4a4"
 
   url "https://github.com/AmirAjaj/PortBar/releases/download/v#{version}/PortBar.zip"
   name "PortBar"
