@@ -11,8 +11,10 @@ struct PortBarApp: App {
         MenuBarExtra {
             MenuContentView(scanner: scanner, updates: updates)
         } label: {
-            // The menu bar title: a plug icon plus the live dev-server count.
-            Label("\(scanner.devPorts.count)", systemImage: "powerplug.fill")
+            // Plug icon + the live dev-server count, visible without opening the
+            // popover. Embedding the symbol in the Text forces both to render
+            // (a bare Label collapses to icon-only in the menu bar).
+            Text("\(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)")
         }
         .menuBarExtraStyle(.window)  // richer popover UI with scrolling + buttons
     }

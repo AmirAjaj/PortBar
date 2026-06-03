@@ -14,6 +14,13 @@ final class PortScanner: ObservableObject {
 
     private var timer: Timer?
 
+    /// Cached health per port id, so we don't re-probe every scan.
+    private var healthCache: [String: PortHealth] = [:]
+    private var lastHealthCheck = Date.distantPast
+    /// How often to re-probe *existing* servers over HTTP. Decoupled from the
+    /// (faster) port scan so we don't spam dev servers' logs every few seconds.
+    private let healthInterval: TimeInterval = 30
+
     /// How often to rescan, in seconds. Restarts the timer when changed.
     var refreshInterval: TimeInterval = 5 {
         didSet { startTimer() }
@@ -56,19 +63,32 @@ final class PortScanner: ObservableObject {
     func scan() async {
         guard !isScanning else { return }
         isScanning = true
-        var found = await Task.detached(priority: .utility) {
+        let found = await Task.detached(priority: .utility) {
             PortScanner.discoverPorts()
         }.value
-        found = await PortScanner.annotateHealth(found)
-        ports = found
+
+        // Re-probe health only periodically; newly seen ports are probed right
+        // away so their dot appears promptly.
+        let now = Date()
+        let fullRefresh = now.timeIntervalSince(lastHealthCheck) >= healthInterval
+        let annotated = await PortScanner.annotateHealth(found, cache: healthCache, fullRefresh: fullRefresh)
+        if fullRefresh { lastHealthCheck = now }
+        healthCache = Dictionary(
+            annotated.map { ($0.id, $0.health) }, uniquingKeysWith: { first, _ in first })
+
+        ports = annotated
         isScanning = false
     }
 
-    /// Probes each non-system port over HTTP (concurrently, short timeout) and
-    /// returns copies tagged with their liveness.
-    nonisolated static func annotateHealth(_ ports: [ListeningPort]) async -> [ListeningPort] {
-        let health: [String: PortHealth] = await withTaskGroup(of: (String, PortHealth).self) { group in
-            for port in ports where !port.isSystem {
+    /// Tags each non-system port with its liveness. Ports are only probed over
+    /// HTTP when newly seen (absent from `cache`) or when `fullRefresh` is set;
+    /// otherwise the cached value is reused, keeping network noise low.
+    nonisolated static func annotateHealth(
+        _ ports: [ListeningPort], cache: [String: PortHealth], fullRefresh: Bool
+    ) async -> [ListeningPort] {
+        let toProbe = ports.filter { !$0.isSystem && (fullRefresh || cache[$0.id] == nil) }
+        let probed: [String: PortHealth] = await withTaskGroup(of: (String, PortHealth).self) { group in
+            for port in toProbe {
                 group.addTask { (port.id, await httpHealth(port: port.port)) }
             }
             var map: [String: PortHealth] = [:]
@@ -77,7 +97,11 @@ final class PortScanner: ObservableObject {
         }
         return ports.map { port in
             var copy = port
-            copy.health = health[port.id] ?? .unknown
+            if port.isSystem {
+                copy.health = .unknown
+            } else {
+                copy.health = probed[port.id] ?? cache[port.id] ?? .unknown
+            }
             return copy
         }
     }
