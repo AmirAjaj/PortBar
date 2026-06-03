@@ -28,6 +28,8 @@ with the project it belongs to, and kill it in one click. That's it.
 
 ## What it does
 
+- The menu bar icon shows how many dev servers are running, so you get the count
+  at a glance without even opening it.
 - Lists every listening TCP port with its process and the project folder it's
   running from, so `3000 — node (my-app)` instead of just a number.
 - A green/orange dot tells you whether it's actually answering or just sitting
@@ -75,6 +77,8 @@ You need macOS 14+ and a Swift 6 toolchain (Xcode or the Command Line Tools).
 git clone https://github.com/AmirAjaj/PortBar.git
 cd PortBar
 make run        # run it straight away
+make test       # run the test suite
+make lint       # check formatting (swift-format)
 make install    # build PortBar.app and copy it to ~/Applications
 ```
 
@@ -87,7 +91,8 @@ For each one it looks up the process's executable path (to spot and hide system
 daemons under `/System`, `/usr/bin`, etc.) and its working directory (to label it
 with the project). A port counts as a dev server if the command looks like one
 (`node`, `vite`, `python`, `cargo`, …) or it's running from somewhere under your
-home folder. The health dot is just a quick HTTP `HEAD` with a short timeout.
+home folder. The health dot is a quick HTTP `HEAD` — done when a server first
+appears and re-checked every ~30s, so it won't spam your dev logs.
 
 The code lives in `Sources/PortBar/`, roughly one file per concern (scanning,
 the model, the menu UI, killing, launch-at-login).
