@@ -11,7 +11,7 @@ APP="$ROOT/dist/PortBar.app"
 
 cd "$ROOT"
 
-echo "==> Building ($CONFIG)…"
+echo "==> Building ($CONFIG)..."
 swift build -c "$CONFIG"
 
 BIN="$(swift build -c "$CONFIG" --show-bin-path)/PortBar"
@@ -20,7 +20,7 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-echo "==> Assembling $APP…"
+echo "==> Assembling ${APP}..."
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/PortBar"
