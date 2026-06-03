@@ -3,8 +3,8 @@ import Foundation
 /// Sends signals to processes by PID using the C `kill(2)` call.
 enum ProcessKiller {
     enum Signal {
-        case term // graceful (SIGTERM)
-        case kill // forceful (SIGKILL)
+        case term  // graceful (SIGTERM)
+        case kill  // forceful (SIGKILL)
 
         var rawValue: Int32 {
             switch self {

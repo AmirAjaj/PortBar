@@ -10,6 +10,11 @@ let package = Package(
         .executableTarget(
             name: "PortBar",
             path: "Sources/PortBar"
+        ),
+        .testTarget(
+            name: "PortBarTests",
+            dependencies: ["PortBar"],
+            path: "Tests/PortBarTests"
         )
     ]
 )

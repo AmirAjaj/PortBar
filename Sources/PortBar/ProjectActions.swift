@@ -4,7 +4,7 @@ import AppKit
 enum ProjectActions {
     /// A code editor we know how to open folders in.
     struct Editor: Identifiable {
-        let id: String        // bundle identifier
+        let id: String  // bundle identifier
         let name: String
         var appURL: URL? { NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) }
         var isInstalled: Bool { appURL != nil }
@@ -15,7 +15,7 @@ enum ProjectActions {
         Editor(id: "com.todesktop.230313mzl4w4u92", name: "Cursor"),
         Editor(id: "com.microsoft.VSCode", name: "Visual Studio Code"),
         Editor(id: "dev.zed.Zed", name: "Zed"),
-        Editor(id: "com.sublimetext.4", name: "Sublime Text")
+        Editor(id: "com.sublimetext.4", name: "Sublime Text"),
     ]
 
     static var installedEditors: [Editor] { knownEditors.filter(\.isInstalled) }
@@ -24,9 +24,10 @@ enum ProjectActions {
     static func open(_ directory: String, in editor: Editor) {
         guard let appURL = editor.appURL else { return }
         let config = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.open([URL(fileURLWithPath: directory)],
-                                withApplicationAt: appURL,
-                                configuration: config)
+        NSWorkspace.shared.open(
+            [URL(fileURLWithPath: directory)],
+            withApplicationAt: appURL,
+            configuration: config)
     }
 
     /// Reveals `directory` in Finder.
@@ -37,12 +38,14 @@ enum ProjectActions {
     /// Opens `directory` in the user's terminal (Terminal.app, or iTerm if present).
     static func openInTerminal(_ directory: String) {
         let terminalIDs = ["com.googlecode.iterm2", "com.apple.Terminal"]
-        let appURL = terminalIDs
+        let appURL =
+            terminalIDs
             .compactMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
             .first
         guard let appURL else { return }
-        NSWorkspace.shared.open([URL(fileURLWithPath: directory)],
-                                withApplicationAt: appURL,
-                                configuration: NSWorkspace.OpenConfiguration())
+        NSWorkspace.shared.open(
+            [URL(fileURLWithPath: directory)],
+            withApplicationAt: appURL,
+            configuration: NSWorkspace.OpenConfiguration())
     }
 }

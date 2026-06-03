@@ -17,7 +17,7 @@ enum Shell {
 
         let stdout = Pipe()
         process.standardOutput = stdout
-        process.standardError = Pipe() // swallow stderr so it doesn't spam the console
+        process.standardError = Pipe()  // swallow stderr so it doesn't spam the console
 
         do {
             try process.run()

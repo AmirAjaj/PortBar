@@ -23,8 +23,14 @@ jobs:
       - name: Swift version
         run: swift --version
 
+      - name: Lint (swift-format)
+        run: swift format lint --recursive --strict Sources Tests
+
       - name: Build
         run: swift build
+
+      - name: Test
+        run: ./Scripts/test.sh
 
       - name: Assemble .app bundle
         run: ./Scripts/build-app.sh release

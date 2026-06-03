@@ -19,10 +19,11 @@ struct MenuContentView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    section(title: "Dev servers",
-                            ports: scanner.devPorts,
-                            emptyMessage: "No dev servers listening",
-                            showStopAll: true)
+                    section(
+                        title: "Dev servers",
+                        ports: scanner.devPorts,
+                        emptyMessage: "No dev servers listening",
+                        showStopAll: true)
 
                     if !scanner.otherPorts.isEmpty {
                         section(title: "Other listeners", ports: scanner.otherPorts)
@@ -35,8 +36,9 @@ struct MenuContentView: View {
                 .padding(.vertical, 6)
                 .background(
                     GeometryReader { geo in
-                        Color.clear.preference(key: ContentHeightKey.self,
-                                               value: geo.size.height)
+                        Color.clear.preference(
+                            key: ContentHeightKey.self,
+                            value: geo.size.height)
                     }
                 )
             }
@@ -77,9 +79,11 @@ struct MenuContentView: View {
     // MARK: - Sections
 
     @ViewBuilder
-    private func section(title: String, ports: [ListeningPort],
-                         emptyMessage: String? = nil,
-                         showStopAll: Bool = false) -> some View {
+    private func section(
+        title: String, ports: [ListeningPort],
+        emptyMessage: String? = nil,
+        showStopAll: Bool = false
+    ) -> some View {
         HStack {
             Text(title.uppercased())
                 .font(.caption2.weight(.semibold))
@@ -176,7 +180,7 @@ private extension PortHealth {
         switch self {
         case .responding: return .green
         case .noResponse: return .orange
-        case .unknown:    return .gray
+        case .unknown: return .gray
         }
     }
 
@@ -184,7 +188,7 @@ private extension PortHealth {
         switch self {
         case .responding: return "Responding to HTTP"
         case .noResponse: return "Listening, but not responding to HTTP"
-        case .unknown:    return "Checking…"
+        case .unknown: return "Checking…"
         }
     }
 }
@@ -234,9 +238,12 @@ private struct PortRowView: View {
             HStack(spacing: 4) {
                 // Open the project in your editor (shows the editor's real icon).
                 if let wd = port.workingDirectory, wd != "/",
-                   let editor = ProjectActions.installedEditors.first,
-                   let appURL = editor.appURL {
-                    Button { ProjectActions.open(wd, in: editor) } label: {
+                    let editor = ProjectActions.installedEditors.first,
+                    let appURL = editor.appURL
+                {
+                    Button {
+                        ProjectActions.open(wd, in: editor)
+                    } label: {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
                             .resizable().frame(width: 16, height: 16)
                     }
@@ -244,7 +251,9 @@ private struct PortRowView: View {
                     .help("Open in \(editor.name)")
                 }
                 if port.localhostURL != nil {
-                    Button { openInBrowser() } label: {
+                    Button {
+                        openInBrowser()
+                    } label: {
                         if let icon = Browser.defaultIcon {
                             Image(nsImage: icon).resizable().frame(width: 16, height: 16)
                         } else {
@@ -266,29 +275,41 @@ private struct PortRowView: View {
         .onHover { hovering = $0 }
         .contextMenu {
             if port.localhostURL != nil {
-                Button { openInBrowser() } label: {
+                Button {
+                    openInBrowser()
+                } label: {
                     Text(verbatim: "Open localhost:\(port.port) in Browser")
                 }
             }
             if let wd = port.workingDirectory, wd != "/" {
                 Divider()
                 ForEach(ProjectActions.installedEditors) { editor in
-                    Button { ProjectActions.open(wd, in: editor) } label: {
+                    Button {
+                        ProjectActions.open(wd, in: editor)
+                    } label: {
                         Text(verbatim: "Open in \(editor.name)")
                     }
                 }
-                Button { ProjectActions.openInTerminal(wd) } label: {
+                Button {
+                    ProjectActions.openInTerminal(wd)
+                } label: {
                     Text(verbatim: "Open in Terminal")
                 }
-                Button { ProjectActions.revealInFinder(wd) } label: {
+                Button {
+                    ProjectActions.revealInFinder(wd)
+                } label: {
                     Text(verbatim: "Reveal in Finder")
                 }
             }
             Divider()
-            Button { onKill(.term) } label: {
+            Button {
+                onKill(.term)
+            } label: {
                 Text(verbatim: "Stop server (graceful — lets it shut down cleanly)")
             }
-            Button(role: .destructive) { onKill(.kill) } label: {
+            Button(role: .destructive) {
+                onKill(.kill)
+            } label: {
                 Text(verbatim: "Force quit (kill instantly — only if Stop fails)")
             }
             Divider()
@@ -300,7 +321,9 @@ private struct PortRowView: View {
         if let url = port.localhostURL { NSWorkspace.shared.open(url) }
     }
 
-    private func actionButton(_ symbol: String, help: String, tint: Color? = nil, action: @escaping () -> Void) -> some View {
+    private func actionButton(
+        _ symbol: String, help: String, tint: Color? = nil, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
         }

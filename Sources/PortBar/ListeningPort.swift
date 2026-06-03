@@ -2,9 +2,9 @@ import Foundation
 
 /// Result of probing a port over HTTP.
 enum PortHealth: Sendable {
-    case unknown      // not yet checked
-    case responding   // answered an HTTP request
-    case noResponse   // socket is open but didn't answer in time (hung / non-HTTP)
+    case unknown  // not yet checked
+    case responding  // answered an HTTP request
+    case noResponse  // socket is open but didn't answer in time (hung / non-HTTP)
 }
 
 /// A single listening TCP port together with the process that owns it.
@@ -37,7 +37,7 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
         guard let path = executablePath else { return false }
         let systemPrefixes = [
             "/System/", "/usr/bin/", "/usr/sbin/", "/usr/libexec/",
-            "/sbin/", "/bin/", "/Library/Apple/"
+            "/sbin/", "/bin/", "/Library/Apple/",
         ]
         return systemPrefixes.contains { path.hasPrefix($0) }
     }
@@ -51,7 +51,7 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
             "rollup", "parcel", "ng", "nodemon", "ts-node", "tsx", "pnpm", "yarn",
             "npm", "python", "python3", "uvicorn", "gunicorn", "flask", "ruby",
             "rails", "puma", "php", "java", "gradle", "cargo", "go", "hugo",
-            "jekyll", "rustc", "dotnet", "air", "kilo"
+            "jekyll", "rustc", "dotnet", "air", "kilo",
         ]
         // lsof truncates long command names (e.g. "Code\x20H"); match on a
         // lowercased prefix so "nodemon"/"node" etc. still register.
@@ -59,9 +59,10 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
         if devCommands.contains(where: { lower.hasPrefix($0) }) { return true }
 
         if let wd = workingDirectory,
-           wd != "/",
-           let home = ProcessInfo.processInfo.environment["HOME"],
-           wd.hasPrefix(home + "/") {
+            wd != "/",
+            let home = ProcessInfo.processInfo.environment["HOME"],
+            wd.hasPrefix(home + "/")
+        {
             return true
         }
         return false

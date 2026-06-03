@@ -9,7 +9,7 @@ enum Browser {
     /// Icon of the default browser, resolved and cached once.
     static let defaultIcon: NSImage? = {
         guard let probe = URL(string: "https://example.com"),
-              let appURL = NSWorkspace.shared.urlForApplication(toOpen: probe)
+            let appURL = NSWorkspace.shared.urlForApplication(toOpen: probe)
         else { return nil }
         let icon = NSWorkspace.shared.icon(forFile: appURL.path)
         icon.size = NSSize(width: 16, height: 16)

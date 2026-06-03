@@ -1,4 +1,4 @@
-.PHONY: build run app install clean
+.PHONY: build run test lint format app install clean
 
 # Compile a debug build.
 build:
@@ -7,6 +7,18 @@ build:
 # Run straight from the terminal (handy during development).
 run:
 	swift run
+
+# Run the test suite (works with full Xcode or Command Line Tools).
+test:
+	./Scripts/test.sh
+
+# Check formatting without modifying files.
+lint:
+	swift format lint --recursive --strict Sources Tests
+
+# Reformat the code in place.
+format:
+	swift format --in-place --recursive Sources Tests
 
 # Assemble a release PortBar.app into dist/.
 app:

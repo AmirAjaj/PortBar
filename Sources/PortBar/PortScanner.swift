@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 /// Scans for listening TCP ports and publishes the results for the UI.
 ///
@@ -106,8 +106,11 @@ final class PortScanner: ObservableObject {
     /// Lists listening TCP sockets and enriches each with executable path and
     /// working directory. Pure and `Sendable`-friendly so it can run detached.
     nonisolated static func discoverPorts() -> [ListeningPort] {
-        guard let output = Shell.run("/usr/sbin/lsof",
-                                     ["-nP", "-iTCP", "-sTCP:LISTEN"]) else {
+        guard
+            let output = Shell.run(
+                "/usr/sbin/lsof",
+                ["-nP", "-iTCP", "-sTCP:LISTEN"])
+        else {
             return []
         }
 
@@ -117,41 +120,55 @@ final class PortScanner: ObservableObject {
         var cwdCache: [Int32: String?] = [:]
 
         for line in output.split(separator: "\n").dropFirst() {
-            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
-                .map(String.init)
-            // COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-            guard fields.count >= 9,
-                  let pid = Int32(fields[1]) else { continue }
-            let command = fields[0]
-            let name = fields[8] // e.g. "*:3000", "127.0.0.1:8080", "[::1]:5000"
-            guard let portString = name.split(separator: ":").last,
-                  let port = Int(portString) else { continue }
+            guard let parsed = parseLsofLine(line) else { continue }
+            let (pid, command, port) = parsed
 
             let key = "\(pid):\(port)"
             if seen.contains(key) { continue }
             seen.insert(key)
 
-            let exe = exeCache[pid] ?? {
-                let value = executablePath(for: pid)
-                exeCache[pid] = value
-                return value
-            }()
-            let cwd = cwdCache[pid] ?? {
-                let value = workingDirectory(for: pid)
-                cwdCache[pid] = value
-                return value
-            }()
+            let exe =
+                exeCache[pid]
+                ?? {
+                    let value = executablePath(for: pid)
+                    exeCache[pid] = value
+                    return value
+                }()
+            let cwd =
+                cwdCache[pid]
+                ?? {
+                    let value = workingDirectory(for: pid)
+                    cwdCache[pid] = value
+                    return value
+                }()
 
-            result.append(ListeningPort(
-                pid: pid,
-                command: command,
-                port: port,
-                executablePath: exe,
-                workingDirectory: cwd
-            ))
+            result.append(
+                ListeningPort(
+                    pid: pid,
+                    command: command,
+                    port: port,
+                    executablePath: exe,
+                    workingDirectory: cwd
+                ))
         }
 
         return result.sorted { $0.port < $1.port }
+    }
+
+    /// Parses one `lsof` output line into (pid, command, port).
+    ///
+    /// Columns are: `COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME`, where
+    /// NAME looks like `*:3000`, `127.0.0.1:8080`, or `[::1]:5000`. Returns nil
+    /// for the header row or anything malformed. Pure, so it's unit-testable.
+    nonisolated static func parseLsofLine(_ line: Substring) -> (pid: Int32, command: String, port: Int)? {
+        let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
+        guard fields.count >= 9, let pid = Int32(fields[1]) else { return nil }
+        let command = fields[0]
+        // The port is whatever follows the final colon (handles IPv6 brackets).
+        guard let portString = fields[8].split(separator: ":").last,
+            let port = Int(portString)
+        else { return nil }
+        return (pid, command, port)
     }
 
     private nonisolated static func executablePath(for pid: Int32) -> String? {

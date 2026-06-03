@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 @main
 struct PortBarApp: App {
@@ -13,7 +13,7 @@ struct PortBarApp: App {
             // The menu bar title: a plug icon plus the live dev-server count.
             Label("\(scanner.devPorts.count)", systemImage: "powerplug.fill")
         }
-        .menuBarExtraStyle(.window) // richer popover UI with scrolling + buttons
+        .menuBarExtraStyle(.window)  // richer popover UI with scrolling + buttons
     }
 }
 
