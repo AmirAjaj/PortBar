@@ -7,6 +7,10 @@ struct MenuContentView: View {
     @AppStorage("refreshInterval") private var refreshInterval: Double = 5
     @AppStorage("showSystemPorts") private var showSystemPorts: Bool = false
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    /// Natural height of the scrollable list, measured so the popover sizes to
+    /// its content (a bare ScrollView collapses to zero height in a window-style
+    /// MenuBarExtra).
+    @State private var listContentHeight: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,8 +32,16 @@ struct MenuContentView: View {
                     }
                 }
                 .padding(.vertical, 6)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: ContentHeightKey.self,
+                                               value: geo.size.height)
+                    }
+                )
             }
-            .frame(maxHeight: 360)
+            // Size to content, but never thinner than one row or taller than 360pt.
+            .frame(height: min(max(listContentHeight, 48), 360))
+            .onPreferenceChange(ContentHeightKey.self) { listContentHeight = $0 }
 
             Divider()
             footer
@@ -138,6 +150,14 @@ struct MenuContentView: View {
         .font(.callout)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+/// Carries the measured natural height of the list up to the parent.
+private struct ContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
