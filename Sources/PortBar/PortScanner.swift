@@ -1,0 +1,130 @@
+import Foundation
+import Combine
+
+/// Scans for listening TCP ports and publishes the results for the UI.
+///
+/// Scanning shells out to `lsof` on a background task and the parsed,
+/// `Sendable` results are handed back to the main actor for publishing.
+@MainActor
+final class PortScanner: ObservableObject {
+    /// All listening ports discovered on the most recent scan, port-sorted.
+    @Published private(set) var ports: [ListeningPort] = []
+    /// Set while a scan is in flight (for a subtle UI affordance).
+    @Published private(set) var isScanning = false
+
+    private var timer: Timer?
+
+    /// How often to rescan, in seconds. Restarts the timer when changed.
+    var refreshInterval: TimeInterval = 5 {
+        didSet { startTimer() }
+    }
+
+    /// Ports we consider real dev servers (shown prominently).
+    var devPorts: [ListeningPort] { ports.filter(\.isDevServer) }
+
+    /// User-started, non-system listeners that aren't obviously dev servers.
+    var otherPorts: [ListeningPort] {
+        ports.filter { !$0.isDevServer && !$0.isSystem }
+    }
+
+    /// Apple/OS daemons — hidden unless the user opts to show them.
+    var systemPorts: [ListeningPort] { ports.filter(\.isSystem) }
+
+    init() {
+        startTimer()
+        Task { await scan() }
+    }
+
+    private func startTimer() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
+            Task { await self?.scan() }
+        }
+    }
+
+    /// Performs one scan: the blocking `lsof`/`ps` work runs off the main
+    /// actor, then results are published back here.
+    func scan() async {
+        guard !isScanning else { return }
+        isScanning = true
+        let found = await Task.detached(priority: .utility) {
+            PortScanner.discoverPorts()
+        }.value
+        ports = found
+        isScanning = false
+    }
+
+    // MARK: - Discovery (runs off the main actor)
+
+    /// Lists listening TCP sockets and enriches each with executable path and
+    /// working directory. Pure and `Sendable`-friendly so it can run detached.
+    nonisolated static func discoverPorts() -> [ListeningPort] {
+        guard let output = Shell.run("/usr/sbin/lsof",
+                                     ["-nP", "-iTCP", "-sTCP:LISTEN"]) else {
+            return []
+        }
+
+        var seen = Set<String>()
+        var result: [ListeningPort] = []
+        var exeCache: [Int32: String?] = [:]
+        var cwdCache: [Int32: String?] = [:]
+
+        for line in output.split(separator: "\n").dropFirst() {
+            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+                .map(String.init)
+            // COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+            guard fields.count >= 9,
+                  let pid = Int32(fields[1]) else { continue }
+            let command = fields[0]
+            let name = fields[8] // e.g. "*:3000", "127.0.0.1:8080", "[::1]:5000"
+            guard let portString = name.split(separator: ":").last,
+                  let port = Int(portString) else { continue }
+
+            let key = "\(pid):\(port)"
+            if seen.contains(key) { continue }
+            seen.insert(key)
+
+            let exe = exeCache[pid] ?? {
+                let value = executablePath(for: pid)
+                exeCache[pid] = value
+                return value
+            }()
+            let cwd = cwdCache[pid] ?? {
+                let value = workingDirectory(for: pid)
+                cwdCache[pid] = value
+                return value
+            }()
+
+            result.append(ListeningPort(
+                pid: pid,
+                command: command,
+                port: port,
+                executablePath: exe,
+                workingDirectory: cwd
+            ))
+        }
+
+        return result.sorted { $0.port < $1.port }
+    }
+
+    private nonisolated static func executablePath(for pid: Int32) -> String? {
+        Shell.run("/bin/ps", ["-p", "\(pid)", "-o", "comm="])?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+    }
+
+    private nonisolated static func workingDirectory(for pid: Int32) -> String? {
+        // `lsof -Fn` prints field-formatted output; the cwd line starts with "n".
+        guard let raw = Shell.run("/usr/sbin/lsof", ["-a", "-p", "\(pid)", "-d", "cwd", "-Fn"]) else {
+            return nil
+        }
+        for line in raw.split(separator: "\n") where line.hasPrefix("n") {
+            return String(line.dropFirst())
+        }
+        return nil
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}
