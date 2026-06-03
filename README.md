@@ -1,4 +1,8 @@
-# PortBar
+<p align="center">
+  <img src="Resources/AppIcon.png" width="128" alt="PortBar app icon">
+</p>
+
+<h1 align="center">PortBar</h1>
 
 [![CI](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml/badge.svg)](https://github.com/AmirAjaj/PortBar/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
