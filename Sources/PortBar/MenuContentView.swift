@@ -194,7 +194,15 @@ private struct PortRowView: View {
             // full, since hover tooltips are unreliable in a menu-bar popover.
             HStack(spacing: 4) {
                 if port.localhostURL != nil {
-                    actionButton("safari", help: "Open in browser") { openInBrowser() }
+                    Button { openInBrowser() } label: {
+                        if let icon = Browser.defaultIcon {
+                            Image(nsImage: icon).resizable().frame(width: 16, height: 16)
+                        } else {
+                            Image(systemName: "safari").foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in browser")
                 }
                 actionButton("stop.circle", help: "Stop (graceful)") { onKill(.term) }
                 actionButton("xmark.octagon.fill", help: "Force quit", tint: .red) { onKill(.kill) }
