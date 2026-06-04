@@ -6,15 +6,23 @@ struct PortBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var scanner = PortScanner()
     @StateObject private var updates = UpdateChecker()
+    @StateObject private var keepAwake = KeepAwake()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContentView(scanner: scanner, updates: updates)
+            MenuContentView(scanner: scanner, updates: updates, keepAwake: keepAwake)
         } label: {
             // Plug icon + the live dev-server count, visible without opening the
-            // popover. Embedding the symbol in the Text forces both to render
-            // (a bare Label collapses to icon-only in the menu bar).
-            Text("\(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)")
+            // popover. A cup is shown while "keep awake" is on so you don't
+            // forget it's draining battery. Embedding symbols in the Text forces
+            // them to render (a bare Label collapses to icon-only).
+            if keepAwake.isActive {
+                Text(
+                    "\(Image(systemName: "cup.and.saucer.fill")) \(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)"
+                )
+            } else {
+                Text("\(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)")
+            }
         }
         .menuBarExtraStyle(.window)  // richer popover UI with scrolling + buttons
     }

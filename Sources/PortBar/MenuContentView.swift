@@ -4,6 +4,7 @@ import SwiftUI
 struct MenuContentView: View {
     @ObservedObject var scanner: PortScanner
     @ObservedObject var updates: UpdateChecker
+    @ObservedObject var keepAwake: KeepAwake
 
     @AppStorage("refreshInterval") private var refreshInterval: Double = 5
     @AppStorage("showSystemPorts") private var showSystemPorts: Bool = false
@@ -51,7 +52,10 @@ struct MenuContentView: View {
             footer
         }
         .frame(width: 340)
-        .onAppear { scanner.refreshInterval = refreshInterval }
+        .onAppear {
+            scanner.refreshInterval = refreshInterval
+            keepAwake.refresh()
+        }
     }
 
     // MARK: - Header
@@ -156,6 +160,15 @@ struct MenuContentView: View {
             .onChange(of: launchAtLogin) { _, newValue in
                 LaunchAtLogin.set(newValue)
             }
+
+            Toggle(isOn: Binding(get: { keepAwake.isActive }, set: { keepAwake.setActive($0) })) {
+                Text("Keep awake (incl. lid closed)").frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .help(
+                "Stops the Mac from sleeping so agents keep running with the lid shut. "
+                    + "Asks for your admin password; while on, watch battery and heat.")
 
             if updates.updateAvailable, let latest = updates.latestVersion {
                 Button {

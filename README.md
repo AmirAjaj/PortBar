@@ -39,6 +39,10 @@ with the project it belongs to, and kill it in one click. That's it.
   Finder, or a terminal.
 - Hides macOS's own background daemons so you only see things you care about.
 - "Stop all" when you just want a clean slate.
+- **Keep awake** — a toggle that stops the Mac sleeping, *even with the lid
+  closed*, so a long-running agent or build doesn't get paused when you shut the
+  laptop. (Uses `pmset disablesleep`, so it asks for your admin password; while
+  it's on a cup shows in the menu bar — mind the battery and heat.)
 
 It's a native SwiftUI menu bar app — no Electron, no background service. Under the
 hood it just shells out to `lsof`.

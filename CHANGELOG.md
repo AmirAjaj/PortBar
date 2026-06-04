@@ -7,6 +7,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- "Keep awake (incl. lid closed)" toggle — stops the Mac sleeping so long-running
+  agents keep going with the lid shut (backed by `pmset disablesleep`; needs an
+  admin password). A cup icon appears in the menu bar while it's on.
 - The menu bar shows the live dev-server count next to the plug icon, so you can
   see how many are running without opening the popover.
 - In-app update check and a Restart action.
