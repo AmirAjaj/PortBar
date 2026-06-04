@@ -13,16 +13,12 @@ struct PortBarApp: App {
             MenuContentView(scanner: scanner, updates: updates, keepAwake: keepAwake)
         } label: {
             // Plug icon + the live dev-server count, visible without opening the
-            // popover. A cup is shown while "keep awake" is on so you don't
-            // forget it's draining battery. Embedding symbols in the Text forces
-            // them to render (a bare Label collapses to icon-only).
-            if keepAwake.isActive {
-                Text(
-                    "\(Image(systemName: "cup.and.saucer.fill")) \(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)"
-                )
-            } else {
-                Text("\(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)")
-            }
+            // popover. A coffee emoji is prefixed while "keep awake" is on so you
+            // don't forget it's draining battery. (Two SF Symbols in one menu-bar
+            // Text don't both render, so the cup is a plain emoji.)
+            Text(
+                "\(keepAwake.isActive ? "☕ " : "")\(Image(systemName: "powerplug.fill")) \(scanner.devPorts.count)"
+            )
         }
         .menuBarExtraStyle(.window)  // richer popover UI with scrolling + buttons
     }
