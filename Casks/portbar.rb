@@ -1,6 +1,6 @@
 cask "portbar" do
-  version "0.1.0"
-  sha256 "cf91103f27c6d0266c106605ce587f1fec702f50e5d3021c18f79cc34ffea4a4"
+  version "0.2.0"
+  sha256 "179dda3a9e327c35a2dc888fe773c96b19a104a610ace67f2f95fe26e0f25e9a"
 
   url "https://github.com/AmirAjaj/PortBar/releases/download/v#{version}/PortBar.zip"
   name "PortBar"
