@@ -3,11 +3,12 @@
 # Builds PortBar and assembles a distributable PortBar.app bundle in dist/.
 #
 # Usage: ./Scripts/build-app.sh [debug|release]   (default: release)
+# Set PORTBAR_APP_OUTPUT to write the bundle somewhere other than dist/.
 set -euo pipefail
 
 CONFIG="${1:-release}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/dist/PortBar.app"
+APP="${PORTBAR_APP_OUTPUT:-$ROOT/dist/PortBar.app}"
 
 clean_bundle_xattrs() {
   xattr -cr "$APP" 2>/dev/null || true
@@ -15,6 +16,7 @@ clean_bundle_xattrs() {
     xattr -d com.apple.FinderInfo "$path" 2>/dev/null || true
     xattr -d com.apple.ResourceFork "$path" 2>/dev/null || true
     xattr -d 'com.apple.fileprovider.fpfs#P' "$path" 2>/dev/null || true
+    xattr -d com.apple.provenance "$path" 2>/dev/null || true
   done < <(find "$APP" -print0)
 }
 

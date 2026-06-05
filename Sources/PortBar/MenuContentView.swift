@@ -3,11 +3,14 @@ import SwiftUI
 /// The popover shown when the user clicks the menu bar item.
 struct MenuContentView: View {
     @ObservedObject var scanner: PortScanner
+    @ObservedObject var repoScanner: RepoScanner
     @ObservedObject var updates: UpdateChecker
     @ObservedObject var keepAwake: KeepAwake
 
     @AppStorage("refreshInterval") private var refreshInterval: Double = 5
     @AppStorage("showSystemPorts") private var showSystemPorts: Bool = false
+    @StateObject private var favicons = FaviconCache()
+    @State private var selectedPane: MenuPane = .ports
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     /// Natural height of the scrollable list, measured so the popover sizes to
     /// its content (a bare ScrollView collapses to zero height in a window-style
@@ -19,39 +22,22 @@ struct MenuContentView: View {
             header
             Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 4) {
-                    section(
-                        title: "Dev servers",
-                        ports: scanner.devPorts,
-                        emptyMessage: "No dev servers listening",
-                        showStopAll: true)
-
-                    if !scanner.otherPorts.isEmpty {
-                        section(title: "Other listeners", ports: scanner.otherPorts)
-                    }
-
-                    if showSystemPorts && !scanner.systemPorts.isEmpty {
-                        section(title: "System", ports: scanner.systemPorts)
-                    }
-                }
-                .padding(.vertical, 6)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: ContentHeightKey.self,
-                            value: geo.size.height)
-                    }
-                )
+            Picker("", selection: $selectedPane) {
+                Text("Ports").tag(MenuPane.ports)
+                Text("Repos").tag(MenuPane.repos)
             }
-            // Size to content, but never thinner than one row or taller than 360pt.
-            .frame(height: min(max(listContentHeight, 48), 360))
-            .onPreferenceChange(ContentHeightKey.self) { listContentHeight = $0 }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Divider()
+            content
 
             Divider()
             footer
         }
-        .frame(width: 340)
+        .frame(width: 460)
         .onAppear {
             scanner.refreshInterval = refreshInterval
             keepAwake.refresh()
@@ -67,11 +53,16 @@ struct MenuContentView: View {
                 .foregroundStyle(.tint)
             Text("PortBar").font(.headline)
             Spacer()
-            if scanner.isScanning {
+            if isScanning {
                 ProgressView().controlSize(.small)
             }
             Button {
-                Task { await scanner.scan() }
+                Task {
+                    switch selectedPane {
+                    case .ports: await scanner.scan()
+                    case .repos: await repoScanner.scan()
+                    }
+                }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
@@ -83,6 +74,60 @@ struct MenuContentView: View {
     }
 
     // MARK: - Sections
+
+    @ViewBuilder
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                switch selectedPane {
+                case .ports:
+                    portsContent
+                case .repos:
+                    reposContent
+                }
+            }
+            .padding(.vertical, 6)
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: ContentHeightKey.self,
+                        value: geo.size.height)
+                }
+            )
+        }
+        // Size to content, but never thinner than one row or taller than 360pt.
+        .frame(height: min(max(listContentHeight, 48), 360))
+        .onPreferenceChange(ContentHeightKey.self) { listContentHeight = $0 }
+    }
+
+    @ViewBuilder
+    private var portsContent: some View {
+        section(
+            title: "Dev servers",
+            ports: scanner.devPorts,
+            emptyMessage: "No dev servers listening",
+            showStopAll: true)
+
+        if !scanner.otherPorts.isEmpty {
+            section(title: "Other listeners", ports: scanner.otherPorts)
+        }
+
+        if showSystemPorts && !scanner.systemPorts.isEmpty {
+            section(title: "System", ports: scanner.systemPorts)
+        }
+    }
+
+    @ViewBuilder
+    private var reposContent: some View {
+        repoSection(
+            title: "Needs attention",
+            repositories: repoScanner.attentionRepositories,
+            emptyMessage: repoScanner.repositories.isEmpty ? "No Git repositories found" : "All repos clean")
+
+        if !repoScanner.cleanRepositories.isEmpty {
+            repoSection(title: "Clean", repositories: repoScanner.cleanRepositories)
+        }
+    }
 
     @ViewBuilder
     private func section(
@@ -127,31 +172,83 @@ struct MenuContentView: View {
         }
     }
 
+    @ViewBuilder
+    private func repoSection(
+        title: String,
+        repositories: [GitRepositoryStatus],
+        emptyMessage: String? = nil
+    ) -> some View {
+        HStack {
+            Text(title.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+            if title == "Needs attention", repoScanner.attentionCount > 0 {
+                Text("\(repoScanner.attentionCount)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 6)
+
+        if repositories.isEmpty, let emptyMessage {
+            Text(emptyMessage)
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+        } else {
+            ForEach(repositories) { repository in
+                RepoRowView(
+                    repository: repository,
+                    favicons: favicons,
+                    onHide: { repoScanner.hide(repository) })
+            }
+        }
+    }
+
     // MARK: - Footer
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Refresh")
-                Spacer()
-                Picker("", selection: $refreshInterval) {
-                    Text("2s").tag(2.0)
-                    Text("5s").tag(5.0)
-                    Text("10s").tag(10.0)
-                    Text("30s").tag(30.0)
+            if selectedPane == .ports {
+                HStack {
+                    Text("Refresh")
+                    Spacer()
+                    Picker("", selection: $refreshInterval) {
+                        Text("2s").tag(2.0)
+                        Text("5s").tag(5.0)
+                        Text("10s").tag(10.0)
+                        Text("30s").tag(30.0)
+                    }
+                    .labelsHidden()
+                    .frame(width: 70)
+                    .onChange(of: refreshInterval) { _, newValue in
+                        scanner.refreshInterval = newValue
+                    }
                 }
-                .labelsHidden()
-                .frame(width: 70)
-                .onChange(of: refreshInterval) { _, newValue in
-                    scanner.refreshInterval = newValue
-                }
-            }
 
-            Toggle(isOn: $showSystemPorts) {
-                Text("Show system listeners").frame(maxWidth: .infinity, alignment: .leading)
+                Toggle(isOn: $showSystemPorts) {
+                    Text("Show system listeners").frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Scanning Desktop, Developer, Code, Projects, and Sites")
+                    Text("Right-click any repo to hide it from this list.")
+                    if repoScanner.hiddenRepositoryCount > 0 {
+                        Button("Show \(repoScanner.hiddenRepositoryCount) hidden repos") {
+                            Task { await repoScanner.showAllHiddenRepositories() }
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.tint)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
             }
-            .toggleStyle(.switch)
-            .controlSize(.mini)
 
             Toggle(isOn: $launchAtLogin) {
                 Text("Launch at login").frame(maxWidth: .infinity, alignment: .leading)
@@ -214,6 +311,18 @@ struct MenuContentView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
+
+    private var isScanning: Bool {
+        switch selectedPane {
+        case .ports: scanner.isScanning
+        case .repos: repoScanner.isScanning
+        }
+    }
+}
+
+private enum MenuPane: String {
+    case ports
+    case repos
 }
 
 private extension PortHealth {
@@ -371,5 +480,162 @@ private struct PortRowView: View {
         .buttonStyle(.borderless)
         .foregroundStyle(tint ?? .secondary)
         .help(help)
+    }
+}
+
+private extension GitRepositoryStatus {
+    var statusColor: Color {
+        if isDirty { return .orange }
+        if hasRemoteDrift { return .blue }
+        return .green
+    }
+}
+
+private struct RepoRowView: View {
+    let repository: GitRepositoryStatus
+    @ObservedObject var favicons: FaviconCache
+    let onHide: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RepoIconView(host: repository.remoteHost, favicons: favicons)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(repository.name)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+                    .layoutPriority(2)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.caption2.weight(.semibold))
+                    Text(repository.branch)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .foregroundStyle(.secondary)
+
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(repository.statusColor)
+                        .frame(width: 6, height: 6)
+                    Text(repository.statusSummary)
+                        .font(.caption)
+                        .foregroundStyle(repository.needsAttention ? .secondary : .tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+
+            HStack(spacing: 4) {
+                if repository.needsAttention {
+                    actionButton("sparkles", help: "Ask Codex to explain changes") {
+                        CodexActions.reviewCurrentChanges(in: repository)
+                    }
+                }
+                if let editor = ProjectActions.installedEditors.first, let appURL = editor.appURL {
+                    Button {
+                        ProjectActions.open(repository.path, in: editor)
+                    } label: {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                            .resizable().frame(width: 16, height: 16)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Open in \(editor.name)")
+                }
+                actionButton("terminal", help: "Open in Terminal") {
+                    ProjectActions.openInTerminal(repository.path)
+                }
+                actionButton("magnifyingglass", help: "Reveal in Finder") {
+                    ProjectActions.revealInFinder(repository.path)
+                }
+            }
+            .opacity(hovering ? 1 : 0.5)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .contentShape(Rectangle())
+        .background(hovering ? Color.primary.opacity(0.06) : .clear)
+        .onHover { hovering = $0 }
+        .contextMenu {
+            if repository.needsAttention {
+                Button("Ask Codex to explain changes") {
+                    CodexActions.reviewCurrentChanges(in: repository)
+                }
+                Divider()
+            }
+            if let editor = ProjectActions.installedEditors.first {
+                Button("Open in \(editor.name)") {
+                    ProjectActions.open(repository.path, in: editor)
+                }
+            }
+            Button("Open in Terminal") {
+                ProjectActions.openInTerminal(repository.path)
+            }
+            Button("Reveal in Finder") {
+                ProjectActions.revealInFinder(repository.path)
+            }
+            Divider()
+            Button("Hide from repo list") {
+                onHide()
+            }
+            Divider()
+            Text(verbatim: repository.path)
+        }
+    }
+
+    private func actionButton(
+        _ symbol: String, help: String, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help(help)
+    }
+}
+
+private struct RepoIconView: View {
+    let host: String?
+    @ObservedObject var favicons: FaviconCache
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(iconBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                )
+
+            if let image = favicons.image(for: host) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 18, height: 18)
+            } else {
+                Image(systemName: host == nil ? "folder.fill" : "globe")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 15, height: 15)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(host == nil ? .orange : .blue)
+            }
+        }
+        .frame(width: 26, height: 26)
+        .task(id: host) {
+            await favicons.load(host: host)
+        }
+        .help(host ?? "Local repository")
+    }
+
+    private var iconBackground: Color {
+        host == nil ? Color.orange.opacity(0.18) : Color.white.opacity(0.96)
     }
 }

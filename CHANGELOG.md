@@ -6,6 +6,15 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-05
+
+### Added
+- Repo Watch tab: scans common local repo folders, shows dirty/ahead/behind
+  status, uses remote favicons when available, and opens repos in editor,
+  Terminal, or Finder.
+- Dirty repos can open a focused Codex chat that briefly explains the current
+  uncommitted changes without editing files.
+
 ## [0.2.0] - 2026-06-05
 
 ### Added
@@ -46,6 +55,7 @@ First release.
 - Launch at login, adjustable refresh interval.
 - Homebrew cask, generated app icon, CI, and a tagged release workflow.
 
-[Unreleased]: https://github.com/AmirAjaj/PortBar/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/AmirAjaj/PortBar/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/AmirAjaj/PortBar/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AmirAjaj/PortBar/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AmirAjaj/PortBar/releases/tag/v0.1.0
