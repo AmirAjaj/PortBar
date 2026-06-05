@@ -11,7 +11,10 @@ enum LaunchAtLogin {
         SMAppService.mainApp.status == .enabled
     }
 
-    static func set(_ enabled: Bool) {
+    @discardableResult
+    static func set(_ enabled: Bool) -> Bool {
+        guard isEnabled != enabled else { return enabled }
+
         do {
             if enabled {
                 try SMAppService.mainApp.register()
@@ -21,5 +24,6 @@ enum LaunchAtLogin {
         } catch {
             NSLog("PortBar: failed to update launch-at-login: \(error)")
         }
+        return isEnabled
     }
 }

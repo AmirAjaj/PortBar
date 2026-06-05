@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Minimal helper for running command-line tools and capturing their output.
@@ -5,12 +6,12 @@ import Foundation
 /// PortBar leans on `lsof` and `ps` rather than private APIs, which keeps the
 /// app dependency-free and easy to reason about.
 enum Shell {
-    /// Runs an executable with the given arguments and returns its stdout as a
-    /// trimmed string. Returns `nil` if the process can't be launched.
+    /// Runs an executable with the given arguments and returns its stdout.
+    /// Returns `nil` if the process can't be launched or exceeds `timeout`.
     ///
     /// This blocks the calling thread, so callers should invoke it off the main
     /// actor (see `PortScanner.scan()`).
-    static func run(_ launchPath: String, _ arguments: [String]) -> String? {
+    static func run(_ launchPath: String, _ arguments: [String], timeout: TimeInterval = 5) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: launchPath)
         process.arguments = arguments
@@ -22,6 +23,21 @@ enum Shell {
         do {
             try process.run()
         } catch {
+            return nil
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning && Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        if process.isRunning {
+            process.terminate()
+            Thread.sleep(forTimeInterval: 0.1)
+            if process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
+            process.waitUntilExit()
             return nil
         }
 

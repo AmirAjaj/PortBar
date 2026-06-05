@@ -6,6 +6,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-05
+
 ### Added
 - "Keep awake (incl. lid closed)" toggle — stops the Mac sleeping so long-running
   agents keep going with the lid shut (backed by `pmset disablesleep`; needs an
@@ -17,6 +19,14 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - Health probing is now gentler: ports are only checked over HTTP when newly
   seen or every ~30s, instead of every scan, to avoid spamming dev server logs.
+
+### Fixed
+- Tightened dev-server detection so "Stop all" only targets known dev tools or
+  processes running inside recognizable project folders, and never system paths.
+- Launch-at-login now snaps back to the real macOS state when registration fails.
+- Restart no longer quits the app unless the relaunch actually succeeds.
+- Shell-based scans now time out instead of leaving PortBar stuck scanning.
+- Release bundles are cleaned of Finder/resource-fork attributes before signing.
 
 ## [0.1.0] - 2026-06-03
 
@@ -36,5 +46,6 @@ First release.
 - Launch at login, adjustable refresh interval.
 - Homebrew cask, generated app icon, CI, and a tagged release workflow.
 
-[Unreleased]: https://github.com/AmirAjaj/PortBar/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/AmirAjaj/PortBar/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AmirAjaj/PortBar/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/AmirAjaj/PortBar/releases/tag/v0.1.0

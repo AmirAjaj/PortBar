@@ -55,6 +55,7 @@ struct MenuContentView: View {
         .onAppear {
             scanner.refreshInterval = refreshInterval
             keepAwake.refresh()
+            launchAtLogin = LaunchAtLogin.isEnabled
         }
     }
 
@@ -158,7 +159,10 @@ struct MenuContentView: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
             .onChange(of: launchAtLogin) { _, newValue in
-                LaunchAtLogin.set(newValue)
+                let actualValue = LaunchAtLogin.set(newValue)
+                if launchAtLogin != actualValue {
+                    launchAtLogin = actualValue
+                }
             }
 
             Toggle(isOn: Binding(get: { keepAwake.isActive }, set: { keepAwake.setActive($0) })) {

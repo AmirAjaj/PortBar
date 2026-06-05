@@ -46,25 +46,83 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
     /// Either the command matches a known dev tool, or it's running out of a
     /// real project directory under the user's home folder.
     var isDevServer: Bool {
-        let devCommands: Set<String> = [
-            "node", "deno", "bun", "next", "vite", "nuxt", "webpack", "esbuild",
-            "rollup", "parcel", "ng", "nodemon", "ts-node", "tsx", "pnpm", "yarn",
-            "npm", "python", "python3", "uvicorn", "gunicorn", "flask", "ruby",
-            "rails", "puma", "php", "java", "gradle", "cargo", "go", "hugo",
-            "jekyll", "rustc", "dotnet", "air", "kilo",
-        ]
-        // lsof truncates long command names (e.g. "Code\x20H"); match on a
-        // lowercased prefix so "nodemon"/"node" etc. still register.
-        let lower = command.lowercased()
-        if devCommands.contains(where: { lower.hasPrefix($0) }) { return true }
+        if isSystem { return false }
+        if Self.isKnownDevCommand(command) { return true }
 
-        if let wd = workingDirectory,
-            wd != "/",
-            let home = ProcessInfo.processInfo.environment["HOME"],
-            wd.hasPrefix(home + "/")
-        {
-            return true
+        guard let wd = workingDirectory else { return false }
+        return Self.looksLikeProjectDirectory(wd)
+    }
+
+    private static let exactDevCommands: Set<String> = [
+        "node", "nodejs", "deno", "bun", "next", "vite", "nuxt", "webpack", "esbuild",
+        "rollup", "parcel", "ng", "nodemon", "ts-node", "tsx", "pnpm", "yarn",
+        "npm", "python", "python3", "uvicorn", "gunicorn", "flask", "ruby",
+        "rails", "puma", "php", "java", "gradle", "cargo", "go", "hugo",
+        "jekyll", "rustc", "dotnet", "air", "kilo",
+    ]
+
+    private static let prefixedDevCommandRoots: Set<String> = [
+        "node", "python", "python3", "ruby", "php", "java", "gradle", "cargo",
+        "dotnet", "bun", "deno", "npm", "pnpm", "yarn", "webpack", "uvicorn",
+        "gunicorn", "flask", "rails",
+    ]
+
+    private static let projectMarkerNames: Set<String> = [
+        ".git", "package.json", "pnpm-workspace.yaml", "deno.json", "deno.jsonc",
+        "bun.lock", "bun.lockb", "vite.config.js", "vite.config.ts", "next.config.js",
+        "next.config.mjs", "nuxt.config.ts", "pyproject.toml", "requirements.txt",
+        "Pipfile", "poetry.lock", "uv.lock", "Gemfile", "Cargo.toml", "go.mod",
+        "composer.json", "pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle",
+        "Package.swift",
+    ]
+
+    private static let excludedHomeChildren: Set<String> = [
+        "Applications", "Library", ".Trash",
+    ]
+
+    private static func isKnownDevCommand(_ command: String) -> Bool {
+        let lower = command.lowercased()
+        if exactDevCommands.contains(lower) { return true }
+
+        return prefixedDevCommandRoots.contains { root in
+            lower.hasPrefix(root + "-") || lower.hasPrefix(root + ".") || lower.hasPrefix(root + "_")
         }
+    }
+
+    private static func looksLikeProjectDirectory(_ path: String) -> Bool {
+        guard let home = ProcessInfo.processInfo.environment["HOME"] else { return false }
+
+        let directory = URL(fileURLWithPath: path).standardizedFileURL
+        let homeDirectory = URL(fileURLWithPath: home).standardizedFileURL
+        let directoryPath = directory.path
+        let homePath = homeDirectory.path
+
+        guard directoryPath.hasPrefix(homePath + "/") else { return false }
+
+        let relativePath = String(directoryPath.dropFirst(homePath.count + 1))
+        guard let firstComponent = relativePath.split(separator: "/").first.map(String.init),
+            !excludedHomeChildren.contains(firstComponent)
+        else {
+            return false
+        }
+
+        return containsProjectMarker(startingAt: directory, stopAt: homeDirectory)
+    }
+
+    private static func containsProjectMarker(startingAt directory: URL, stopAt homeDirectory: URL) -> Bool {
+        let fileManager = FileManager.default
+        let homePath = homeDirectory.path
+        var current = directory
+
+        while current.path != homePath && current.path.hasPrefix(homePath + "/") {
+            for marker in projectMarkerNames {
+                if fileManager.fileExists(atPath: current.appendingPathComponent(marker).path) {
+                    return true
+                }
+            }
+            current.deleteLastPathComponent()
+        }
+
         return false
     }
 

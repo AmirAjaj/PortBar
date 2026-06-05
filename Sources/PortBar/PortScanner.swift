@@ -196,14 +196,15 @@ final class PortScanner: ObservableObject {
     }
 
     private nonisolated static func executablePath(for pid: Int32) -> String? {
-        Shell.run("/bin/ps", ["-p", "\(pid)", "-o", "comm="])?
+        Shell.run("/bin/ps", ["-p", "\(pid)", "-o", "comm="], timeout: 2)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nilIfEmpty
     }
 
     private nonisolated static func workingDirectory(for pid: Int32) -> String? {
         // `lsof -Fn` prints field-formatted output; the cwd line starts with "n".
-        guard let raw = Shell.run("/usr/sbin/lsof", ["-a", "-p", "\(pid)", "-d", "cwd", "-Fn"]) else {
+        guard let raw = Shell.run("/usr/sbin/lsof", ["-a", "-p", "\(pid)", "-d", "cwd", "-Fn"], timeout: 2)
+        else {
             return nil
         }
         for line in raw.split(separator: "\n") where line.hasPrefix("n") {
